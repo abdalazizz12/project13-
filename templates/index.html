@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Arabic:wght@100..800&family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Amiri',Vazirmatn;
+            
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #47648a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .container {
+            padding: 30px;
+            max-width: 800px;
+            margin: auto;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 30px;
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        input[type="file"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            font-family:'Amiri',Vazirmatn ;
+            margin-top: 20px;
+            padding: 10px 25px;
+            background-color: #405b80;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #00337a;
+        }
+
+        #preview-img {
+            border: 1px solid #000000;
+            max-width: 100%;
+            margin-top: 20px;
+            cursor: crosshair;
+            border-radius: 4px;
+        }
+
+        #result {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        footer {
+            font-weight:bold;
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            font-size: 14px;
+            color: #000000;
+        }
+    </style>
+    
+    
+</head>
+<body>
+
+<header>
+    <h1> أداة تعديل ملفات PDF</h1>
+    <p>ارفع ملفك الـ PDF، ثم انقر على الصورة لتحديد مكان كتابة النص. سيتم إدراج النص داخل مربع يبدأ من النقطة التي اخترتها، وبمساحة مناسبة لعرضه بشكل واضح.</p>
+
+</header>
+
+<div class="container">
+    <form id="upload-form">
+        <label> اختيار الملف PDF:</label>
+        <input type="file" name="pdf_file" accept="application/pdf" required />
+        <button type="submit">تحميل ومعاينة</button>
+    </form>
+
+    <div id="preview-container" style="display:none;">
+        <p> انقر على الصورة لتحديد موضع النص:</p>
+        <img id="preview-img" src="" alt="PDF Preview" />
+    </div>
+
+    <form id="text-form" style="margin-top:20px; display:none;">
+        <label> النص المراد إضافته:</label>
+        <textarea id="input-text" rows="4" required></textarea>
+
+        <input type="hidden" id="pdf-filename" />
+        <input type="hidden" id="page-number" value="0" />
+        <input type="hidden" id="pos-x" />
+        <input type="hidden" id="pos-y" />
+
+        <button type="submit">إضافة النص</button>
+    </form>
+
+    <div id="result"></div>
+</div>
+
+<footer>
+    © 2025 | تم  تصميمة والتطويرة بواسطة عبدالعزيز العنزي </footer>
+
+<script>
+    const uploadForm = document.getElementById('upload-form');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImg = document.getElementById('preview-img');
+    const textForm = document.getElementById('text-form');
+    const pdfFilenameInput = document.getElementById('pdf-filename');
+    const pageNumberInput = document.getElementById('page-number');
+    const posXInput = document.getElementById('pos-x');
+    const posYInput = document.getElementById('pos-y');
+    const inputText = document.getElementById('input-text');
+    const resultDiv = document.getElementById('result');
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        resultDiv.innerHTML = "";
+
+        const formData = new FormData(uploadForm);
+        const resp = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!resp.ok) {
+            alert('حدث خطأ أثناء رفع الملف');
+            return;
+        }
+
+        const data = await resp.json();
+        pdfFilenameInput.value = data.pdf_filename;
+
+        previewImg.src = '/static/' + data.preview_img;
+        previewContainer.style.display = 'block';
+        textForm.style.display = 'none';
+
+        posXInput.value = "";
+        posYInput.value = "";
+    });
+
+    previewImg.addEventListener('click', (e) => {
+        const rect = previewImg.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        posXInput.value = x;
+        posYInput.value = y;
+
+        alert(`تم تحديد الموضع: X=${x.toFixed(2)}، Y=${y.toFixed(2)}`);
+
+        textForm.style.display = 'block';
+    });
+
+    textForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        resultDiv.innerHTML = "";
+
+        const text = inputText.value.trim();
+        if (!text) {
+            alert('الرجاء إدخال النص');
+            return;
+        }
+
+        const payload = {
+            pdf_filename: pdfFilenameInput.value,
+            text: text,
+            page_number: parseInt(pageNumberInput.value),
+            x: parseFloat(posXInput.value),
+            y: parseFloat(posYInput.value)
+        };
+
+        const resp = await fetch('/add_text', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+            alert('حدث خطأ أثناء إضافة النص');
+            return;
+        }
+
+        const data = await resp.json();
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = `/download/${data.output_pdf}`;
+        downloadLink.textContent = " تحميل الملف بعد التعديل";
+        downloadLink.style.display = "block";
+        downloadLink.style.marginTop = "20px";
+
+        resultDiv.appendChild(downloadLink);
+    });
+</script>
+
+</body>
+</html>
